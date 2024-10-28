@@ -1,0 +1,25 @@
+<!-- courses/templates/courses/enroll_form.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enroll in {{ course.title }}</title>
+</head>
+<body>
+    <h1>Enroll in {{ course.title }}</h1>
+    <form method="post">
+        {% csrf_token %}
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div>
+            <label for="education">Educational Background:</label>
+            <input type="text" id="education" name="education" required>
+        </div>
+        <button type="submit">Confirm Enrollment</button>
+    </form>
+    <a href="{% url 'course_detail' course.id %}">Cancel</a>
+</body>
+</html>
