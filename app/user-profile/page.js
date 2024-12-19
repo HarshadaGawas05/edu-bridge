@@ -41,31 +41,6 @@ const Navigation = () => (
   </nav>
 );
 
-// const ScheduleCard = () => (
-//   <div className="bg-white p-6 rounded-lg shadow-md mt-6 max-w-3xl">
-//     <div className="flex items-start">
-//       <div className="mr-4">
-//         <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-//           <span className="text-gray-900 text-xl">⏰</span>
-//         </div>
-//       </div>
-//       <div>
-//         <h2 className="text-lg font-semibold mb-2">Schedule learning time</h2>
-//         <p className="text-gray-800 mb-4">
-//           Learning a little each day adds up. Research shows that students who
-//           make learning a habit are more likely to reach their goals. Set time
-//           aside to learn and get reminders using your learning scheduler.
-//         </p>
-//         <div className="flex space-x-4">
-//           <button className="bg-gray-900 text-white px-4 py-2 rounded">
-//             Get started
-//           </button>
-//           <button className="text-gray-600">Dismiss</button>
-//         </div>
-//       </div>
-//     </div>
-//   </div>
-// );
 
 const CourseCard = ({ image, title, author, progress, rating }) => (
   <div className="bg-white rounded-lg shadow-md overflow-hidden">

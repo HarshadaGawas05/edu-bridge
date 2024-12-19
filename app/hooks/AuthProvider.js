@@ -7,6 +7,7 @@ import {
   setPersistence,
   browserLocalPersistence,
 } from "firebase/auth";
+import axios from "axios";
 
 // Create a context
 const AuthContext = createContext();
@@ -32,6 +33,23 @@ const AuthProvider = ({ children }) => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       setUser(result.user);
+
+      // Get the Firebase ID token
+      const token = await result.user.getIdToken();
+
+      // Send Firebase ID token and user details to Django backend
+      const response = await axios.post(
+        "http://localhost:8000/auth_api/google-signin/",
+        {
+          id_token: token,
+          google_id: result.user.uid,
+          email: result.user.email,
+          display_name: result.user.displayName,
+          photo_url: result.user.photoURL,
+        }
+      );
+
+      console.log("Response: ", response.data);
     } catch (error) {
       console.error("Google sign-in error:", error);
     }

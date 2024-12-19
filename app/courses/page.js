@@ -16,6 +16,7 @@ export default function Component() {
   const [userData, setUserData] = useState({
     name: "",
     education: "",
+    skillLevel: "",
   });
   const [enrollError, setEnrollError] = useState(null); // State for enrollment error
 
@@ -101,25 +102,39 @@ export default function Component() {
     return cookieValue;
   }
 
+  // Get CSRF token from cookie
+  function getCSRFToken() {
+    const cookieValue = document.cookie.match(
+      "(^|;)\\s*" + "csrftoken" + "\\s*=\\s*([^;]+)"
+    );
+    return cookieValue ? cookieValue.pop() : "";
+  }
+
   const handleEnroll = async (course) => {
-    setEnrollError(null); // Reset previous errors
-    const token = localStorage.getItem("auth_token");
-    const csrfToken = getCookie("csrftoken");
-
-    if (!token) {
-      setEnrollError("User is not logged in.");
-      return;
-    }
-
-    if (!course || !course.id) {
-      setEnrollError("Course ID is missing.");
-      return;
-    }
-
-    if (!userData.name || !userData.education) {
+    // Form validation
+    if (!userData.name || !userData.education || !userData.skillLevel) {
       setEnrollError("Please fill in all required fields.");
       return;
     }
+
+    // Get auth token from localStorage
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setEnrollError("Please log in to enroll in courses.");
+      return;
+    }
+
+    // Get CSRF token
+    const csrfToken = getCSRFToken();
+
+    // Prepare the enrollment data matching Django backend expectations
+    const enrollmentData = {
+      name: userData.name,
+      education: userData.education,
+      skill_level: userData.skillLevel.toLowerCase(), // Convert to match backend expectation
+      course_id: course.id,
+      enrollment_date: new Date().toISOString(),
+    };
 
     try {
       const response = await fetch(
@@ -131,21 +146,75 @@ export default function Component() {
             Authorization: `Bearer ${token}`,
             "X-CSRFToken": csrfToken,
           },
-          body: JSON.stringify(userData),
+          body: JSON.stringify(enrollmentData),
+          credentials: "include", // Important for sending cookies
         }
       );
 
-      if (response.status === 403) {
-        setEnrollError(
-          "Enrollment failed: Forbidden. Please check your credentials and CSRF token."
-        );
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Enrollment failed");
       }
 
-      // Handle other response types...
+      const data = await response.json();
+
+      if (data.enrollment_id) {
+        // Successful enrollment
+        setEnrollError(null);
+        // Initialize progress tracking
+        await initializeProgress(data.enrollment_id, course.id);
+        // You might want to show a success message or redirect
+        return true;
+      } else {
+        setEnrollError(data.error || "Enrollment failed.");
+        return false;
+      }
     } catch (error) {
-      setEnrollError("An error occurred during enrollment.");
+      setEnrollError(error.message || "An error occurred during enrollment.");
       console.error("Error enrolling in course:", error);
+      return false;
+    }
+  };
+
+  // Function to initialize progress tracking
+  const initializeProgress = async (enrollmentId, courseId) => {
+    const token = localStorage.getItem("auth_token");
+    const csrfToken = getCSRFToken();
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/course/progress/create/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({
+            enrollment_id: enrollmentId,
+            course_id: courseId,
+            progress: 0,
+          }),
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        console.error("Failed to initialize progress tracking");
+      }
+    } catch (error) {
+      console.error("Error initializing progress:", error);
+    }
+  };
+
+  // Update the modal confirmation handler
+  const handleModalConfirm = async () => {
+    const success = await handleEnroll(selectedCourse);
+    if (success) {
+      // Show success message
+      toast.success("Successfully enrolled in the course!");
+      closeModal();
     }
   };
 
@@ -331,8 +400,10 @@ export default function Component() {
       {/* Enrollment Confirmation Modal */}
       {isModalOpen && selectedCourse && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-black text-lg font-semibold mb-4">Confirm Enrollment</h2>
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h2 className="text-black text-lg font-semibold mb-4">
+              Confirm Enrollment
+            </h2>
             <p className="text-black">
               Are you sure you want to enroll in{" "}
               <strong>{selectedCourse.title}</strong>?
@@ -357,6 +428,19 @@ export default function Component() {
                 className="border border-gray-300 p-2 w-full mb-2"
                 required
               />
+              {/* Skill Level Dropdown */}
+              <select
+                name="skillLevel"
+                value={userData.skillLevel}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 w-full mb-2"
+                required
+              >
+                <option value="">Select your skill level</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
             </div>
             <div className="flex justify-end mt-4">
               <button
